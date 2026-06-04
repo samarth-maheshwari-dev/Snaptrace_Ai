@@ -591,3 +591,5 @@ VITE_GEMINI_API_KEY=your_gemini_api_key
 ---
 
 *PRD Version 1.0 | SnapTrace | IntelliAI Arena 2026 | Built for Web Track*
+
+![SnapTrace Preview](https://github.com/user-attachments/assets/b17ae4d5-af3d-4c6a-893a-eded50e76c63)
