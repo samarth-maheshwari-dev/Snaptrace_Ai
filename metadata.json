@@ -1,0 +1,10 @@
+{
+  "name": "SnapTrace",
+  "description": "A photo-first campus lost & found platform powered by Gemini Vision AI.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

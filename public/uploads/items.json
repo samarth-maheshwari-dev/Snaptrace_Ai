@@ -1,0 +1,213 @@
+[
+  {
+    "id": "f1b1c2b5-bd84-4861-a0ef-aa7391787680",
+    "type": "found",
+    "title": "Black Dell Laptop",
+    "category": "Electronics",
+    "location": "Main Library, 2nd Floor",
+    "date_occurred": "2026-06-01",
+    "description": "Found near the charging stations. Has some stickers on the lid.",
+    "contact_email": "library@aitr.ac.in",
+    "contact_name": "Library Staff",
+    "image_url": "https://cdn.phototourl.com/free/2026-06-04-fdc4a886-1243-4523-a885-c28f02af5259.jpg",
+    "descriptor_json": {
+      "category": "electronics",
+      "primaryColor": "black",
+      "secondaryColors": [
+        "silver"
+      ],
+      "brand": "Dell",
+      "distinctiveFeatures": [
+        "stickers on lid",
+        "scratch near hinge"
+      ],
+      "material": "plastic",
+      "size": "large",
+      "condition": "good",
+      "itemDescription": "A black Dell laptop with colorful stickers on the lid"
+    },
+    "status": "open",
+    "created_at": "2026-06-04T05:24:46.569Z"
+  },
+  {
+    "id": "cbd9d901-b75f-4a00-ab35-b2848c772e7a",
+    "type": "found",
+    "title": "Blue Decathlon Water Bottle",
+    "category": "Accessories",
+    "location": "Sports Ground",
+    "date_occurred": "2026-06-02",
+    "description": "Blue 750ml bottle with Decathlon logo. Found near the cricket nets.",
+    "contact_email": "sports@aitr.ac.in",
+    "contact_name": "Sports Dept",
+    "image_url": "https://cdn.phototourl.com/free/2026-06-04-627948e0-4836-4e82-b912-936625ba76ab.jpg",
+    "descriptor_json": {
+      "category": "accessory",
+      "primaryColor": "blue",
+      "secondaryColors": [
+        "white"
+      ],
+      "brand": "Decathlon",
+      "distinctiveFeatures": [
+        "dent on right side",
+        "750ml capacity"
+      ],
+      "material": "plastic",
+      "size": "medium",
+      "condition": "used",
+      "itemDescription": "A blue Decathlon water bottle with a dent on one side"
+    },
+    "status": "open",
+    "created_at": "2026-06-04T04:24:46.569Z"
+  },
+  {
+    "id": "ea6fcdd9-ed48-4395-8e6d-5567bb408ce8",
+    "type": "found",
+    "title": "Student ID Card - Rahul Sharma",
+    "category": "ID/Cards",
+    "location": "Canteen Counter",
+    "date_occurred": "2026-06-02",
+    "description": "AITR student ID card found at canteen. Student name visible.",
+    "contact_email": "admin@aitr.ac.in",
+    "contact_name": "Admin Office",
+    "image_url": "https://cdn.phototourl.com/free/2026-06-04-ed3ecc11-fa6f-43c7-ae9d-efb0164ad453.webp",
+    "descriptor_json": {
+      "category": "id_card",
+      "primaryColor": "white",
+      "secondaryColors": [
+        "blue",
+        "red"
+      ],
+      "brand": "AITR",
+      "distinctiveFeatures": [
+        "student photo",
+        "barcode"
+      ],
+      "material": "plastic",
+      "size": "small",
+      "condition": "good",
+      "itemDescription": "A university student ID card with photo and barcode"
+    },
+    "status": "open",
+    "created_at": "2026-06-04T02:24:46.569Z"
+  },
+  {
+    "id": "a1a8c3e4-46b0-4dbb-a9b0-95bda6fd2900",
+    "type": "found",
+    "title": "Black JBL Earphones",
+    "category": "Electronics",
+    "location": "Computer Lab A",
+    "date_occurred": "2026-06-03",
+    "description": "Black wired JBL earphones. Left inside Computer Lab A on a desk.",
+    "contact_email": "lab@aitr.ac.in",
+    "contact_name": "Lab Assistant",
+    "image_url": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=400",
+    "descriptor_json": {
+      "category": "electronics",
+      "primaryColor": "black",
+      "secondaryColors": [],
+      "brand": "JBL",
+      "distinctiveFeatures": [
+        "wired",
+        "flat cable",
+        "in-ear style"
+      ],
+      "material": "plastic",
+      "size": "small",
+      "condition": "good",
+      "itemDescription": "Black JBL wired in-ear earphones with flat cable"
+    },
+    "status": "open",
+    "created_at": "2026-06-03T19:24:46.569Z"
+  },
+  {
+    "id": "e44d3ecc-f3aa-448f-bb7a-6242fc4d63ea",
+    "type": "lost",
+    "title": "Grey Fossil Watch",
+    "category": "Accessories",
+    "location": "Seminar Hall",
+    "date_occurred": "2026-06-01",
+    "description": "Grey dial Fossil watch with leather strap. Very sentimental value.",
+    "contact_email": "student1@aitr.ac.in",
+    "contact_name": "Aryan Patel",
+    "image_url": "https://images.unsplash.com/photo-1524592094714-0f0654e20314?w=400",
+    "descriptor_json": {
+      "category": "accessory",
+      "primaryColor": "grey",
+      "secondaryColors": [
+        "brown"
+      ],
+      "brand": "Fossil",
+      "distinctiveFeatures": [
+        "leather strap",
+        "analog dial",
+        "scratched bezel"
+      ],
+      "material": "metal",
+      "size": "small",
+      "condition": "used",
+      "itemDescription": "A grey dial Fossil watch with brown leather strap and scratched bezel"
+    },
+    "status": "open",
+    "created_at": "2026-06-03T11:24:46.569Z"
+  },
+  {
+    "id": "d9f89926-ac47-4eef-b12a-3eaae9da44be",
+    "type": "lost",
+    "title": "Red Puma Backpack",
+    "category": "Clothing",
+    "location": "E-Block Corridor",
+    "date_occurred": "2026-06-03",
+    "description": "Red Puma bag with laptop compartment. Has a small keychain attached.",
+    "contact_email": "student2@aitr.ac.in",
+    "contact_name": "Sneha Verma",
+    "image_url": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400",
+    "descriptor_json": {
+      "category": "clothing",
+      "primaryColor": "red",
+      "secondaryColors": [
+        "black"
+      ],
+      "brand": "Puma",
+      "distinctiveFeatures": [
+        "laptop compartment",
+        "keychain attached",
+        "side water bottle pocket"
+      ],
+      "material": "fabric",
+      "size": "large",
+      "condition": "good",
+      "itemDescription": "A red and black Puma backpack with laptop compartment and keychain"
+    },
+    "status": "open",
+    "created_at": "2026-06-03T07:24:46.569Z"
+  },
+  {
+    "id": "7abbcc5d-16ab-4b44-9ffa-39648cafbed9",
+    "type": "lost",
+    "title": "water bottle",
+    "category": "Clothing",
+    "location": "AITR Campus Near Locale [Lat: 22.8207, Lng: 75.9428]",
+    "date_occurred": "2026-06-04",
+    "description": "blue bottle without cap with black sprinkles",
+    "contact_email": "samarthmaheshwari54321@gmail.com",
+    "contact_name": "parth sharma",
+    "descriptor_json": {
+      "category": "electronics",
+      "primaryColor": "black",
+      "secondaryColors": [
+        "silver"
+      ],
+      "brand": "Dell",
+      "distinctiveFeatures": [
+        "stickers on lid",
+        "scratch near hinge"
+      ],
+      "material": "plastic",
+      "size": "large",
+      "condition": "good",
+      "itemDescription": "A black Dell laptop with stickers on the lid"
+    },
+    "status": "open",
+    "created_at": "2026-06-04T07:29:22.026Z"
+  }
+]
