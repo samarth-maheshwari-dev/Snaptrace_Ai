@@ -25,18 +25,28 @@ photo ──► browser resize + EXIF strip ──► POST /api/images
      scoreMatch() vs every open "found" item ──► ranked matches + reasons
 ```
 
-**Matching (`server/matching.ts`)** — weighted, explainable score (0–100):
+**Matching** is two-stage (retrieve → re-rank):
 
-| Signal | Weight | How |
-|---|---|---|
-| Category | 30 | exact; different categories are capped at 35 total |
-| Colour | 20 | normalised to colour families (`navy` → blue, `space grey` → grey) |
-| Distinctive features | 20 | word-set Jaccard, so "sticker on lid" ≈ "lid has stickers" |
-| Brand | 15 | case-insensitive |
-| Description | 10 | word-set Jaccard |
-| Material | 5 | exact |
+1. **`server/matching.ts`**, a deterministic, explainable scorer run on every candidate. Each signal returns 0–1 or
+   *null = no evidence*, and weights are renormalised over known signals, so a missing logo is not a mismatch.
 
-Matches under 40 are hidden; 75+ are shown as strong.
+   | Signal | Weight | How |
+   |---|---|---|
+   | Category | 22 | exact / related categories partial |
+   | Semantic | 22 | cosine of Gemini text embeddings |
+   | Distinctive features | 18 | overlap of normalised words (plurals, synonyms) |
+   | Colour | 14 | colour families; near colours partial |
+   | Brand | 10 | only when both sides saw one |
+   | Description / material / size | 6 / 4 / 4 | |
+
+   Contradictions multiply the score down and are shown as warnings: different brand, clashing colour,
+   different category, or *found before it was lost*. Thin evidence lowers the score (coverage factor);
+   text-only reports are capped at 75 with low confidence.
+2. **`server/matcher.ts`**: the top 3 are sent to Gemini with **both photos** to ask "same physical object?".
+   The probability is blended in (55/45), cached per pair, and skipped gracefully if AI is off or slow.
+   A hard contradiction caps the result at 60 whatever the model says.
+
+Matches under 40 are hidden.
 
 ## Stack
 
@@ -48,23 +58,25 @@ Matches under 40 are hidden; 75+ are shown as strong.
 
 ## Security & privacy
 
-- No secrets in code. Keys and the admin password come from `.env` (gitignored).
-- Reporter emails are **never** returned by the public API; only staff see them.
-- Admin login is checked server-side and returns an HMAC-signed, expiring token; every admin route verifies it.
+- **No passwords anywhere.** Google Sign-In: the server verifies Google's ID token (signature, audience, expiry, `email_verified`) and issues an httpOnly, HMAC-signed session cookie.
+- Staff = emails in `ADMIN_EMAILS`, re-checked on every request. Optional `ALLOWED_EMAIL_DOMAINS` limits sign-in to a college domain.
+- CSRF: every write needs an `X-Requested-With` header (cross-site requests can't send it without a CORS preflight we never allow).
+- No secrets in code; production refuses to start without `SESSION_SECRET`.
+- Reporter emails are **never** returned by the public API; contact is shared only after staff approve a claim.
 - Uploads are type-sniffed from their bytes (JPEG/PNG/WEBP only), size-capped, renamed with UUIDs.
 - Photos are re-encoded in the browser, which strips EXIF GPS data before upload.
-- Rate limits on uploads, reports, claims and login.
+- Per-user rate limits on uploads, searches, reports, claims and sign-in.
 
 ## Run it
 
 ```bash
 npm install
-cp .env.example .env     # fill in GEMINI_API_KEY, ADMIN_PASSWORD, SESSION_SECRET
+cp .env.example .env     # GEMINI_API_KEY, GOOGLE_CLIENT_ID, ADMIN_EMAILS, SESSION_SECRET
+                         # (or DEV_LOGIN=1 to try locally without Google OAuth)
 npm run dev              # http://localhost:3000
 ```
 
-Without `GEMINI_API_KEY` the app still runs (browse, report, claims, admin); photo search is disabled
-and reports are matched on their text.
+Without `GEMINI_API_KEY` the app still runs; photo search is disabled and reports are matched on their text.
 
 ```bash
 npm test        # unit tests (matching + security)
@@ -79,7 +91,8 @@ server/
   index.ts      routes
   matching.ts   similarity scoring
   gemini.ts     vision call + output validation
-  security.ts   admin tokens, rate limit, image sniffing
+  matcher.ts    two-stage matching + AI verification cache
+  security.ts   Google auth, sessions, CSRF, rate limit, image sniffing
   store.ts      JSON store (atomic writes)
   seed.ts       demo items
 src/
