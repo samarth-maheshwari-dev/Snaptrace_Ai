@@ -39,7 +39,6 @@ export interface ListFilters {
 
 export interface UploadResult {
   imageId: string;
-  url: string;
   descriptor: Descriptor | null;
   aiError: string | null;
 }

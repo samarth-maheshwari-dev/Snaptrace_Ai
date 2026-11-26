@@ -1,86 +1,200 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { buildSeedItems } from "./seed";
 import type { Claim, Item } from "./types";
 
 /**
- * Tiny JSON-file store for local development.
- * - Lives in ./data (gitignored), NOT in /public — the old version served the whole
- *   database, including emails, as a static file at /uploads/items.json.
- * - Writes are atomic (write temp file, then rename) so a crash can't corrupt it.
- * This is deliberately behind a small interface so it can be swapped for Postgres.
+ * Persistence behind one interface:
+ *   - SupabaseStore: Postgres tables + Storage bucket (production / live).
+ *   - JsonStore:     ./data/db.json + ./data/uploads (local dev, zero setup).
+ * Routes only ever talk to `Store`, so swapping backends touches nothing else.
  */
-interface DbShape {
-  items: Item[];
-  claims: Claim[];
+export interface StoredImage { base64: string; mime: string }
+
+export interface Store {
+  readonly kind: "supabase" | "json";
+  init(): Promise<void>;
+  items(): Promise<Item[]>;
+  item(id: string): Promise<Item | undefined>;
+  addItem(item: Item): Promise<void>;
+  updateItem(id: string, patch: Partial<Item>): Promise<Item | undefined>;
+  deleteItem(id: string): Promise<boolean>;
+  claims(): Promise<Claim[]>;
+  claim(id: string): Promise<Claim | undefined>;
+  addClaim(claim: Claim): Promise<void>;
+  updateClaim(id: string, patch: Partial<Claim>): Promise<void>;
+  /** Saves an item photo, returns the URL to store on the item. */
+  putImage(name: string, buf: Buffer, mime: string): Promise<string>;
+  /** Loads a stored photo (for AI verification). Undefined for seed SVGs / missing files. */
+  getImage(url: string): Promise<StoredImage | undefined>;
 }
 
-export class JsonStore {
-  private data: DbShape;
+const MIME: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
+const mimeOf = (url: string) => MIME[path.extname(url.split("?")[0]).slice(1).toLowerCase()];
 
-  constructor(private file: string) {
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    this.data = this.load();
+/** Postgres returns null for empty columns; our types use undefined. */
+function clean<T extends object>(row: T): T {
+  for (const k of Object.keys(row) as (keyof T)[]) if (row[k] === null) delete row[k];
+  return row;
+}
+
+/* ============================== Supabase ============================== */
+const BUCKET = "item-images";
+
+export class SupabaseStore implements Store {
+  readonly kind = "supabase" as const;
+  private sb: SupabaseClient;
+
+  constructor(url: string, serviceKey: string) {
+    // Service-role key bypasses RLS. It lives ONLY on the server; tables have RLS on with
+    // no policies, so the public anon key can read nothing even if someone finds it.
+    this.sb = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   }
 
-  private load(): DbShape {
+  private check<T>(r: { data: T; error: { message: string } | null }, what: string): T {
+    if (r.error) throw new Error(`[supabase] ${what}: ${r.error.message}`);
+    return r.data;
+  }
+
+  async init() {
+    const { count, error } = await this.sb.from("items").select("id", { count: "exact", head: true });
+    if (error) throw new Error(`[supabase] cannot reach tables — did you run supabase/schema.sql? (${error.message})`);
+    if (!count) {
+      this.check(await this.sb.from("items").insert(buildSeedItems()), "seed");
+      console.log("  Seeded demo items into Supabase.");
+    }
+  }
+
+  async items() {
+    return (this.check(await this.sb.from("items").select("*"), "list items") as Item[]).map(clean);
+  }
+  async item(id: string) {
+    const row = this.check(await this.sb.from("items").select("*").eq("id", id).maybeSingle(), "get item") as Item | null;
+    return row ? clean(row) : undefined;
+  }
+  async addItem(item: Item) {
+    this.check(await this.sb.from("items").insert(item), "insert item");
+  }
+  async updateItem(id: string, patch: Partial<Item>) {
+    const row = this.check(await this.sb.from("items").update(patch).eq("id", id).select().maybeSingle(), "update item") as Item | null;
+    return row ? clean(row) : undefined;
+  }
+  async deleteItem(id: string) {
+    const item = await this.item(id);
+    if (!item) return false;
+    this.check(await this.sb.from("items").delete().eq("id", id), "delete item"); // claims cascade in SQL
+    if (item.image_url?.includes(`/${BUCKET}/`)) {
+      await this.sb.storage.from(BUCKET).remove([item.image_url.split(`/${BUCKET}/`)[1]]);
+    }
+    return true;
+  }
+  async claims() {
+    return (this.check(await this.sb.from("claims").select("*"), "list claims") as Claim[]).map(clean);
+  }
+  async claim(id: string) {
+    const row = this.check(await this.sb.from("claims").select("*").eq("id", id).maybeSingle(), "get claim") as Claim | null;
+    return row ? clean(row) : undefined;
+  }
+  async addClaim(claim: Claim) {
+    this.check(await this.sb.from("claims").insert(claim), "insert claim");
+  }
+  async updateClaim(id: string, patch: Partial<Claim>) {
+    this.check(await this.sb.from("claims").update(patch).eq("id", id), "update claim");
+  }
+  async putImage(name: string, buf: Buffer, mime: string) {
+    const { error } = await this.sb.storage.from(BUCKET).upload(name, buf, { contentType: mime, upsert: false });
+    if (error) throw new Error(`[supabase] upload: ${error.message}`);
+    return this.sb.storage.from(BUCKET).getPublicUrl(name).data.publicUrl;
+  }
+  async getImage(url: string) {
+    const mime = mimeOf(url);
+    if (!mime || !url.includes(`/${BUCKET}/`)) return undefined;
+    const { data } = await this.sb.storage.from(BUCKET).download(url.split(`/${BUCKET}/`)[1]);
+    return data ? { base64: Buffer.from(await data.arrayBuffer()).toString("base64"), mime } : undefined;
+  }
+}
+
+/* ============================== Local JSON ============================== */
+interface DbShape { items: Item[]; claims: Claim[] }
+
+export class JsonStore implements Store {
+  readonly kind = "json" as const;
+  private data: DbShape = { items: [], claims: [] };
+  private file: string;
+  readonly uploadDir: string;
+
+  constructor(dir: string) {
+    this.file = path.join(dir, "db.json");
+    this.uploadDir = path.join(dir, "uploads");
+    fs.mkdirSync(this.uploadDir, { recursive: true });
+  }
+
+  async init() {
     if (fs.existsSync(this.file)) {
       try {
-        return JSON.parse(fs.readFileSync(this.file, "utf-8")) as DbShape;
+        this.data = JSON.parse(fs.readFileSync(this.file, "utf-8"));
+        return;
       } catch (e) {
         console.error(`[store] ${this.file} is corrupt, starting from seed`, e);
       }
     }
-    const fresh = { items: buildSeedItems(), claims: [] };
-    this.write(fresh);
-    return fresh;
+    this.data = { items: buildSeedItems(), claims: [] };
+    this.write();
   }
 
-  private write(d: DbShape = this.data) {
+  /** Atomic: write temp file then rename, so a crash can't corrupt the db. */
+  private write() {
     const tmp = `${this.file}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(d, null, 2));
+    fs.writeFileSync(tmp, JSON.stringify(this.data, null, 2));
     fs.renameSync(tmp, this.file);
   }
 
-  items(): Item[] {
-    return this.data.items;
-  }
-  item(id: string): Item | undefined {
-    return this.data.items.find((i) => i.id === id);
-  }
-  addItem(item: Item) {
-    this.data.items.push(item);
-    this.write();
-  }
-  updateItem(id: string, patch: Partial<Item>): Item | undefined {
-    const item = this.item(id);
+  async items() { return this.data.items; }
+  async item(id: string) { return this.data.items.find((i) => i.id === id); }
+  async addItem(item: Item) { this.data.items.push(item); this.write(); }
+  async updateItem(id: string, patch: Partial<Item>) {
+    const item = this.data.items.find((i) => i.id === id);
     if (!item) return undefined;
     Object.assign(item, patch);
     this.write();
     return item;
   }
-  deleteItem(id: string): boolean {
+  async deleteItem(id: string) {
     const before = this.data.items.length;
+    const url = this.data.items.find((i) => i.id === id)?.image_url;
+    if (url?.startsWith("/uploads/")) fs.rmSync(path.join(this.uploadDir, path.basename(url)), { force: true });
     this.data.items = this.data.items.filter((i) => i.id !== id);
     this.data.claims = this.data.claims.filter((c) => c.item_id !== id);
     this.write();
     return this.data.items.length < before;
   }
-
-  claims(): Claim[] {
-    return this.data.claims;
-  }
-  claim(id: string): Claim | undefined {
-    return this.data.claims.find((c) => c.id === id);
-  }
-  addClaim(claim: Claim) {
-    this.data.claims.push(claim);
-    this.write();
-  }
-  updateClaim(id: string, patch: Partial<Claim>) {
-    const c = this.claim(id);
+  async claims() { return this.data.claims; }
+  async claim(id: string) { return this.data.claims.find((c) => c.id === id); }
+  async addClaim(claim: Claim) { this.data.claims.push(claim); this.write(); }
+  async updateClaim(id: string, patch: Partial<Claim>) {
+    const c = this.data.claims.find((x) => x.id === id);
     if (c) Object.assign(c, patch);
     this.write();
-    return c;
   }
+  async putImage(name: string, buf: Buffer) {
+    fs.writeFileSync(path.join(this.uploadDir, path.basename(name)), buf);
+    return `/uploads/${path.basename(name)}`;
+  }
+  async getImage(url: string) {
+    const mime = mimeOf(url);
+    if (!mime || !url.startsWith("/uploads/")) return undefined;
+    const file = path.join(this.uploadDir, path.basename(url)); // basename: no path traversal
+    return fs.existsSync(file) ? { base64: fs.readFileSync(file).toString("base64"), mime } : undefined;
+  }
+}
+
+export function createStore(): Store {
+  const url = process.env.SUPABASE_URL?.trim();
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (url && key) return new SupabaseStore(url, key);
+  if (process.env.NODE_ENV === "production") {
+    console.warn("  ⚠ No SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY: using local JSON — data is lost on redeploy.");
+  }
+  return new JsonStore(path.resolve(process.env.DATA_DIR ?? "data"));
 }

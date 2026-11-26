@@ -53,7 +53,7 @@ Matches under 40 are hidden.
 - **Frontend:** React 19, TypeScript (strict), Vite, Tailwind CSS v4, React Router
 - **Backend:** Express + zod validation, helmet, per-IP rate limiting
 - **AI:** Google Gemini (`gemini-2.5-flash` by default) with structured JSON output
-- **Storage:** JSON file store in `./data` for local dev (behind a small interface, swappable for Postgres)
+- **Storage:** Supabase (Postgres + Storage, RLS on, server-only service key); falls back to a local JSON file for dev
 - **Tests:** Vitest
 
 ## Security & privacy
@@ -84,6 +84,13 @@ npm run lint    # type-check
 npm run build && NODE_ENV=production npm start
 ```
 
+## Deploy (Render + Supabase)
+
+1. Supabase: new project → SQL Editor → run [`supabase/schema.sql`](supabase/schema.sql).
+2. Google Cloud: OAuth client ID (Web) with your live URL in *Authorised JavaScript origins*.
+3. Render: **New → Blueprint** → this repo ([`render.yaml`](render.yaml)) → fill in `GEMINI_API_KEY`, `GOOGLE_CLIENT_ID`,
+   `ADMIN_EMAILS`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. `SESSION_SECRET` is generated.
+
 ## Project layout
 
 ```
@@ -93,7 +100,7 @@ server/
   gemini.ts     vision call + output validation
   matcher.ts    two-stage matching + AI verification cache
   security.ts   Google auth, sessions, CSRF, rate limit, image sniffing
-  store.ts      JSON store (atomic writes)
+  store.ts      Store interface: Supabase or local JSON
   seed.ts       demo items
 src/
   pages/        Home, Browse, Report, Photo search, Item, Admin

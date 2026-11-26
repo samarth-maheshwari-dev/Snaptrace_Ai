@@ -1,7 +1,6 @@
-import fs from "node:fs";
-import path from "node:path";
-import { aiEnabled, verifyPair, type PairSide } from "./gemini";
+import { aiEnabled, verifyPair } from "./gemini";
 import { blendWithVerification, scoreMatch, toMatchInput, type MatchInput } from "./matching";
+import type { StoredImage } from "./store";
 import type { Descriptor, Item, Match, PublicItem } from "./types";
 
 /**
@@ -15,24 +14,13 @@ import type { Descriptor, Item, Match, PublicItem } from "./types";
 export interface Query extends MatchInput {
   id: string;
   title?: string;
-  imageUrl?: string;
+  /** The query photo itself (kept in memory, never written to disk for searches). */
+  image?: StoredImage;
 }
 
 const SHOW_THRESHOLD = 40;
 const CANDIDATE_THRESHOLD = 30; // looser for the AI stage: verification can lift a borderline pair
 const VERIFY_TOP_K = 3;
-
-const UPLOAD_DIR = path.resolve(process.env.DATA_DIR ?? "data", "uploads");
-const MIME: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
-
-/** Only our own uploaded raster photos are sent to Gemini (seed SVG illustrations are skipped). */
-function loadImage(url?: string): PairSide["image"] {
-  if (!url?.startsWith("/uploads/")) return undefined;
-  const file = path.join(UPLOAD_DIR, path.basename(url)); // basename: no path traversal
-  const mime = MIME[path.extname(file).slice(1).toLowerCase()];
-  if (!mime || !fs.existsSync(file)) return undefined;
-  return { base64: fs.readFileSync(file).toString("base64"), mime };
-}
 
 const verifyCache = new Map<string, { probability: number; note: string }>();
 const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
@@ -40,7 +28,13 @@ const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 export async function findMatches(
   query: Query,
   candidates: Item[],
-  opts: { limit: number; verify: boolean; toPublic: (i: Item) => PublicItem },
+  opts: {
+    limit: number;
+    verify: boolean;
+    toPublic: (i: Item) => PublicItem;
+    /** Loads a candidate photo from storage (seed SVGs return undefined and are skipped). */
+    loadImage?: (url: string) => Promise<StoredImage | undefined>;
+  },
 ): Promise<Match[]> {
   if (!query.descriptor) return [];
 
@@ -58,8 +52,12 @@ export async function findMatches(
 
     if (!verdict && opts.verify && aiEnabled && rank < VERIFY_TOP_K && m.item.descriptor_json) {
       const v = await verifyPair(
-        { descriptor: query.descriptor as Descriptor, title: query.title, image: loadImage(query.imageUrl) },
-        { descriptor: m.item.descriptor_json, title: m.item.title, image: loadImage(m.item.image_url) },
+        { descriptor: query.descriptor as Descriptor, title: query.title, image: query.image },
+        {
+          descriptor: m.item.descriptor_json,
+          title: m.item.title,
+          image: m.item.image_url && opts.loadImage ? await opts.loadImage(m.item.image_url).catch(() => undefined) : undefined,
+        },
       );
       if (v) {
         verdict = v;
