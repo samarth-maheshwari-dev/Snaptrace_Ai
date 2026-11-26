@@ -1,130 +1,66 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, MapPin, Clock, ArrowRight } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { Item } from '../types';
+import { MapPin } from 'lucide-react';
+import type { PublicItem } from '../types';
+import { CATEGORY_META, timeAgo } from '../lib/catalog';
+import { StatusBadge, TypeBadge } from './Badges';
 
-interface ItemCardProps {
-  item: Item;
-  key?: any;
+export function ItemThumb({ item, className = '' }: { item: Pick<PublicItem, 'image_url' | 'title' | 'category'>; className?: string }) {
+  const [broken, setBroken] = useState(false);
+  const Icon = CATEGORY_META[item.category]?.icon ?? CATEGORY_META.other.icon;
+  if (item.image_url && !broken) {
+    return (
+      <img
+        src={item.image_url}
+        alt={item.title}
+        loading="lazy"
+        onError={() => setBroken(true)}
+        className={`size-full object-cover ${className}`}
+      />
+    );
+  }
+  return (
+    <div className={`grid size-full place-items-center bg-sunken text-faint ${className}`}>
+      <Icon className="size-1/4 min-h-6 min-w-6" strokeWidth={1.25} />
+    </div>
+  );
 }
 
-// Category Emoji Mapper
-export const categoryEmojis: Record<string, string> = {
-  electronics: "📱",
-  clothing: "👕",
-  stationery: "✏️",
-  accessories: "⌚",
-  accessory: "⌚",
-  "id/cards": "🪪",
-  id_card: "🪪",
-  other: "📦",
-};
-
-export default function ItemCard({ item }: ItemCardProps) {
-  const [imageError, setImageError] = useState(false);
-
-  const getCategoryEmoji = (cat: string) => {
-    const key = cat.toLowerCase();
-    return categoryEmojis[key] || "📦";
-  };
-
-  // Convert time to human description
-  const timeAgo = () => {
-    try {
-      return formatDistanceToNow(new Date(item.created_at), { addSuffix: true });
-    } catch (e) {
-      return "recently";
-    }
-  };
-
+export default function ItemCard({ item }: { item: PublicItem }) {
   return (
-    <div className="group bg-[#161616] border border-[#2A2A2A] rounded-2xl overflow-hidden shadow-lg transition-all duration-300 hover:border-[#FF2D55]/50 hover:shadow-[0_0_20px_rgba(255,45,85,0.15)] flex flex-col h-full">
-      
-      {/* Top Banner Content (Image or Emoji Fallback) */}
-      <div className="relative aspect-square w-full bg-[#0F0F0F] flex items-center justify-center overflow-hidden">
-        
-        {!imageError && item.image_url ? (
-          <img
-            src={item.image_url}
-            alt={item.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            onError={() => setImageError(true)}
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <div className="flex flex-col items-center gap-3 animate-pulse">
-            <span className="text-6xl select-none">{getCategoryEmoji(item.category)}</span>
-            <span className="text-[#888888] text-xs font-mono tracking-wider uppercase">
-              {item.category}
-            </span>
-          </div>
-        )}
-
-        {/* Floating Badges */}
-        <div className="absolute top-3 left-3 flex gap-2">
-          {item.type === 'found' ? (
-            <span className="bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm">
-              Found
-            </span>
-          ) : (
-            <span className="bg-[#FF2D55]/20 text-[#FF2D55] border border-[#FF2D55]/30 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm">
-              Lost
-            </span>
-          )}
-        </div>
-
-        <div className="absolute top-3 right-3">
-          {item.status === 'open' && (
-            <span className="bg-[#00D26A]/20 text-[#00D26A] border border-[#00D26A]/30 rounded-full px-3 py-1 text-xs font-semibold animate-pulse backdrop-blur-sm">
-              Open
-            </span>
-          )}
-          {item.status === 'claimed' && (
-            <span className="bg-[#FFB800]/20 text-[#FFB800] border border-[#FFB800]/30 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm">
-              Claimed
-            </span>
-          )}
-          {item.status === 'resolved' && (
-            <span className="bg-gray-500/20 text-gray-400 border border-gray-500/30 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm">
-              Resolved
-            </span>
-          )}
-        </div>
+    <Link
+      to={`/item/${item.id}`}
+      className="group card flex flex-col overflow-hidden transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]"
+    >
+      <div className="relative aspect-[4/3] overflow-hidden">
+        <ItemThumb item={item} className="transition-transform duration-500 group-hover:scale-[1.03]" />
+        <div className="absolute left-3 top-3"><TypeBadge type={item.type} /></div>
+        {item.status !== 'open' && <div className="absolute right-3 top-3"><StatusBadge status={item.status} /></div>}
       </div>
+      <div className="flex flex-1 flex-col gap-1.5 p-4">
+        <h3 className="line-clamp-1 font-medium text-ink">{item.title}</h3>
+        <p className="flex items-center gap-1.5 text-sm text-muted">
+          <MapPin className="size-3.5 shrink-0" />
+          <span className="line-clamp-1">{item.location}</span>
+        </p>
+        <p className="mt-auto pt-2 font-mono text-xs text-faint">{timeAgo(item.created_at)}</p>
+      </div>
+    </Link>
+  );
+}
 
-      {/* Card Content Footer */}
-      <div className="p-5 flex flex-col flex-grow justify-between gap-4">
-        <div className="space-y-2">
-          <h3 className="font-semibold text-white text-lg font-syne line-clamp-1 group-hover:text-[#FF2D55] transition-colors">
-            {item.title}
-          </h3>
-          
-          <div className="flex items-center gap-2 text-xs text-[#888888] font-inter">
-            <Package className="w-3.5 h-3.5 text-gray-500" />
-            <span className="line-clamp-1">{item.category}</span>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-[#888888] font-inter">
-            <MapPin className="w-3.5 h-3.5 text-[#FF2D55]" />
-            <span className="line-clamp-1">{item.location}</span>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-[#888888] font-mono">
-            <Clock className="w-3.5 h-3.5 text-gray-500" />
-            <span>{timeAgo()}</span>
+export function ItemGridSkeleton({ count = 6 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading items">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="card overflow-hidden">
+          <div className="aspect-[4/3] animate-pulse bg-sunken" />
+          <div className="space-y-2.5 p-4">
+            <div className="h-4 w-2/3 animate-pulse rounded bg-sunken" />
+            <div className="h-3 w-1/2 animate-pulse rounded bg-sunken" />
           </div>
         </div>
-
-        <Link
-          to={`/item/${item.id}`}
-          className="w-full flex items-center justify-center gap-2 border border-[#2A2A2A] text-white hover:border-[#FF2D55] rounded-xl py-2.5 text-xs font-semibold transition-all group-hover:bg-[#FF2D55]/5"
-        >
-          View Details
-          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-        </Link>
-      </div>
-
+      ))}
     </div>
   );
 }

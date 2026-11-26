@@ -1,230 +1,153 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'motion/react';
-import { Search, Plus } from 'lucide-react';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import { ArrowRight, Camera, ScanSearch, ShieldCheck } from 'lucide-react';
+import type { PublicItem } from '../types';
+import { api } from '../lib/api';
+import ItemCard, { ItemGridSkeleton } from '../components/ItemCard';
+import { ScoreRing } from '../components/Badges';
+
+const STEPS = [
+  {
+    icon: Camera,
+    title: 'Snap a photo',
+    body: 'Upload a photo of what you lost — or one like it. No forms full of guesses.',
+  },
+  {
+    icon: ScanSearch,
+    title: 'We compare it',
+    body: 'Gemini Vision describes the item; we score it against everything handed in, and show why it matched.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Prove it, collect it',
+    body: 'Tell staff something only the owner would know. They verify it and connect you with the finder.',
+  },
+];
+
+/** Static hero composition: a "photo" pinned next to the match it found. */
+function HeroVisual() {
+  return (
+    <div className="relative mx-auto aspect-[5/4] w-full max-w-md" aria-hidden>
+      <div className="absolute left-0 top-6 w-[58%] -rotate-3 rounded-2xl border border-line bg-surface p-2.5 shadow-[var(--shadow-lift)]">
+        <div className="relative overflow-hidden rounded-xl">
+          <img src="/images/items/bottle.svg" alt="" className="aspect-square w-full object-cover" />
+          <div className="absolute inset-x-0 top-0 h-1/4 animate-scan bg-gradient-to-b from-transparent via-white/50 to-transparent" />
+        </div>
+        <p className="px-1 pb-0.5 pt-2.5 font-mono text-[11px] text-muted">your_photo.jpg</p>
+      </div>
+      <div className="absolute bottom-2 right-0 w-[60%] rotate-2 rounded-2xl border border-line bg-surface p-3 shadow-[var(--shadow-lift)]">
+        <div className="flex items-center gap-3">
+          <img src="/images/items/bottle.svg" alt="" className="size-14 rounded-lg object-cover" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">Blue steel water bottle</p>
+            <p className="truncate text-xs text-muted">Found · Sports ground</p>
+          </div>
+          <ScoreRing score={86} size={48} />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <span className="chip">Same colour</span>
+          <span className="chip">Dent on side</span>
+        </div>
+      </div>
+      <svg className="absolute left-[44%] top-[46%] w-[22%] text-accent" viewBox="0 0 100 60" fill="none">
+        <path d="M2 8 C 40 0, 70 20, 92 50" stroke="currentColor" strokeWidth="2" strokeDasharray="4 5" />
+        <path d="M84 50 L93 52 L91 42" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    </div>
+  );
+}
 
 export default function HomePage() {
-  // Custom count up states
-  const [reportedCount, setReportedCount] = useState(0);
-  const [recoveredCount, setRecoveredCount] = useState(0);
-  const [accuracyCount, setAccuracyCount] = useState(0);
-  const [timeCount, setTimeCount] = useState(0);
+  const [items, setItems] = useState<PublicItem[] | null>(null);
 
   useEffect(() => {
-    // Simple counting simulator
-    const speed = 15;
-    const reportedTarget = 4;
-    const recoveredTarget = 3;
-    const accuracyTarget = 72;
-    const timeTarget = 6;
-
-    let rCur = 0;
-    let recCur = 0;
-    let accCur = 0;
-    let tCur = 0;
-
-    const interval = setInterval(() => {
-      let done = true;
-      if (rCur < reportedTarget) {
-        rCur += Math.ceil((reportedTarget - rCur) / speed) || 1;
-        setReportedCount(Math.min(rCur, reportedTarget));
-        done = false;
-      }
-      if (recCur < recoveredTarget) {
-        recCur += Math.ceil((recoveredTarget - recCur) / speed) || 1;
-        setRecoveredCount(Math.min(recCur, recoveredTarget));
-        done = false;
-      }
-      if (accCur < accuracyTarget) {
-        accCur += Math.ceil((accuracyTarget - accCur) / speed) || 1;
-        setAccuracyCount(Math.min(accCur, accuracyTarget));
-        done = false;
-      }
-      if (tCur < timeTarget) {
-        tCur += 1;
-        setTimeCount(Math.min(tCur, timeTarget));
-        done = false;
-      }
-
-      if (done) clearInterval(interval);
-    }, 45);
-
-    return () => clearInterval(interval);
+    api.listItems().then(setItems).catch(() => setItems([]));
   }, []);
 
+  const recent = items?.filter((i) => i.status !== 'resolved').slice(0, 6);
+  const stats = items && {
+    waiting: items.filter((i) => i.type === 'found' && i.status !== 'resolved').length,
+    lost: items.filter((i) => i.type === 'lost' && i.status === 'open').length,
+    returned: items.filter((i) => i.status === 'resolved').length,
+  };
+
   return (
-    <div className="bg-[#0D0D0D] text-[#F5F5F5] min-h-screen flex flex-col font-inter">
-      <Navbar />
-
-      <main className="flex-grow">
-        {/* HERO SECTION */}
-        <section className="relative min-h-screen flex items-center pt-24 overflow-hidden">
-          {/* Background Radial Orbs */}
-          <div className="absolute top-1/4 right-[10%] w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-[#FF2D55] to-[#FF6B35] filter blur-[150px] opacity-[0.08] select-none pointer-events-none -z-10" />
-          <div className="absolute bottom-10 left-[5%] w-[350px] h-[350px] rounded-full bg-blue-600 filter blur-[120px] opacity-[0.04] select-none pointer-events-none -z-10" />
-
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 items-center">
-              
-              {/* Left Column (Main text) */}
-              <div className="lg:col-span-3 space-y-6 text-left">
-                <motion.div
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FF2D55]/5 border border-[#FF2D55]/25 text-[#FF2D55] text-xs font-mono font-semibold"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#FF2D55] animate-ping" />
-                  🔴 AI-Powered Lost & Found
-                </motion.div>
-
-                <motion.h1
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.1 }}
-                  className="text-5xl sm:text-6xl xl:text-7xl font-black font-syne leading-[1.1] tracking-tight"
-                >
-                  Lost something? <br />
-                  Show us a <span className="text-[#FF2D55] relative after:absolute after:bottom-1 after:left-0 after:w-full after:h-[6px] after:bg-[#FF2D55]/30">photo.</span>
-                </motion.h1>
-
-                <motion.p
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
-                  className="text-base sm:text-lg text-gray-400 max-w-xl font-normal leading-relaxed"
-                >
-                  SnapTrace uses Gemini Vision AI to instantly match your lost objects against found campus reports. No text input, no manual logs—just upload a photo and retrieve it instantly.
-                </motion.p>
-
-                {/* Call-to-action buttons */}
-                <motion.div
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                  className="flex flex-col sm:flex-row gap-4 pt-4"
-                >
-                  <Link
-                    to="/snapsearch"
-                    className="button-primary flex items-center justify-center gap-2.5 text-sm py-3 px-8 text-center"
-                  >
-                    <Search className="w-4.5 h-4.5" />
-                    Find My Item (SnapSearch)
-                  </Link>
-
-                  <Link
-                    to="/post"
-                    className="button-ghost flex items-center justify-center gap-2.5 text-sm py-3 px-8 text-center"
-                  >
-                    <Plus className="w-4.5 h-4.5 text-[#FF2D55]" />
-                    Report Found Item
-                  </Link>
-                </motion.div>
-              </div>
-
-              {/* Right Column (Floating visual asset) */}
-              <div className="lg:col-span-2 hidden lg:flex justify-end">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.6 }}
-                  className="relative group"
-                >
-                  {/* Neon halo background */}
-                  <div className="absolute inset-x-0 -inset-y-2 bg-gradient-to-tr from-[#FF2D55] to-[#FF6B35] rounded-3xl blur-2xl opacity-10 group-hover:opacity-20 transition-opacity" />
-                  
-                  {/* Matching Floating Card Mock */}
-                  <div className="relative bg-[#161616] border border-[#2A2A2A] rounded-2xl p-5 w-80 shadow-2xl animate-float">
-                    
-                    {/* Item Thumbnail */}
-                    <div className="aspect-[4/3] rounded-xl bg-gradient-to-tr from-[#202020] to-[#1A1A1A] overflow-hidden border border-[#2A2A2A] mb-4 flex items-center justify-center relative">
-                      <div className="flex flex-col items-center gap-2">
-                        <span className="text-5xl select-none animate-pulse">💻</span>
-                        <span className="text-[#888888] text-[10px] font-mono tracking-wider uppercase">
-                          ELECTRONICS
-                        </span>
-                      </div>
-                      
-                      {/* Percent Match Badge */}
-                      <div className="absolute top-3 right-3 bg-[#00D26A]/20 border border-[#00D26A]/40 text-[#00D26A] font-mono text-xs font-bold px-3 py-1 rounded-full backdrop-blur-sm animate-pulse">
-                        87% Match
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5 text-left">
-                      <span className="text-[10px] uppercase tracking-widest text-[#FF2D55] font-mono font-bold">
-                        Best AI Suggestion
-                      </span>
-                      <h4 className="font-syne font-bold text-white text-base">
-                        Black Dell Laptop
-                      </h4>
-                      <div className="flex items-center gap-1.5 text-[#888888] font-inter text-xs">
-                        <span>📍 Canteen Area</span>
-                        <span>·</span>
-                        <span>2 hrs ago</span>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-
-            </div>
+    <>
+      {/* Hero */}
+      <section className="container-page grid items-center gap-12 pb-20 pt-14 md:grid-cols-[1.1fr_1fr] md:pt-20">
+        <div className="animate-rise">
+          <p className="eyebrow">Campus lost &amp; found</p>
+          <h1 className="mt-4 font-display text-[clamp(2.75rem,6vw,4.75rem)] leading-[0.98] tracking-tight">
+            Lost something?
+            <br />
+            <em className="text-accent">Show us</em> what it looked like.
+          </h1>
+          <p className="mt-6 max-w-md text-lg text-muted">
+            “Blue bottle” matches forty listings. A photo of <em>your</em> bottle — dent and all — matches one.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link to="/search" className="btn-accent px-6 py-3">
+              <Camera className="size-4" /> Search with a photo
+            </Link>
+            <Link to="/report" className="btn-outline px-6 py-3">I found something</Link>
           </div>
-        </section>
-
-        {/* LIVE STATS BAR */}
-        <section className="bg-[#0F0F0F] border-y border-[#2A2A2A] py-10 relative overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-6">
-              {/* Left Accent indicator */}
-              <div className="w-[3px] h-12 bg-gradient-to-b from-[#FF2D55] to-[#FF6B35] rounded-full self-center hidden sm:block" />
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 w-full text-center">
-                <div className="space-y-1">
-                  <div className="text-4xl sm:text-5xl font-black font-syne text-white">
-                    {reportedCount}
-                  </div>
-                  <div className="text-xs sm:text-sm text-gray-500 font-inter uppercase tracking-wide font-medium">
-                    Items Reported
-                  </div>
+          {stats && (
+            <dl className="mt-10 flex gap-8 border-t border-line pt-6">
+              {([
+                ['Waiting to be claimed', stats.waiting],
+                ['Reported lost', stats.lost],
+                ['Returned', stats.returned],
+              ] as const).map(([label, n]) => (
+                <div key={label}>
+                  <dt className="text-xs text-muted">{label}</dt>
+                  <dd className="mt-1 font-mono text-2xl">{n}</dd>
                 </div>
+              ))}
+            </dl>
+          )}
+        </div>
+        <HeroVisual />
+      </section>
 
-                <div className="space-y-1">
-                  <div className="text-4xl sm:text-5xl font-black font-syne text-white">
-                    {recoveredCount}
-                  </div>
-                  <div className="text-xs sm:text-sm text-gray-500 font-inter uppercase tracking-wide font-medium">
-                    Items Recovered
-                  </div>
-                </div>
+      {/* How it works */}
+      <section className="border-y border-line bg-surface">
+        <div className="container-page py-16">
+          <h2 className="font-display text-4xl">How it works</h2>
+          <ol className="mt-10 grid gap-10 md:grid-cols-3">
+            {STEPS.map((s, i) => (
+              <li key={s.title}>
+                <span className="font-mono text-xs text-faint">0{i + 1}</span>
+                <s.icon className="mt-3 size-6 text-ink" strokeWidth={1.5} />
+                <h3 className="mt-4 text-lg font-medium">{s.title}</h3>
+                <p className="mt-2 text-muted">{s.body}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
 
-                <div className="space-y-1">
-                  <div className="text-4xl sm:text-5xl font-black font-syne text-[#00D26A]">
-                    {accuracyCount}%
-                  </div>
-                  <div className="text-xs sm:text-sm text-gray-500 font-inter uppercase tracking-wide font-medium">
-                    Match Accuracy
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-4xl sm:text-5xl font-black font-syne text-[#FFB800]">
-                    {timeCount} min
-                  </div>
-                  <div className="text-xs sm:text-sm text-gray-500 font-inter uppercase tracking-wide font-medium">
-                    Avg. Recovery Time
-                  </div>
-                </div>
-              </div>
-            </div>
+      {/* Recent */}
+      <section className="container-page pt-20">
+        <div className="mb-8 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="font-display text-4xl">Recently reported</h2>
+            <p className="mt-2 text-muted">Handed in at desks across campus this week.</p>
           </div>
-        </section>
-
-      </main>
-
-      <Footer />
-    </div>
+          <Link to="/browse" className="btn-ghost hidden sm:inline-flex">
+            See all <ArrowRight className="size-4" />
+          </Link>
+        </div>
+        {!recent ? (
+          <ItemGridSkeleton />
+        ) : recent.length === 0 ? (
+          <p className="card p-10 text-center text-muted">Nothing reported yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {recent.map((item) => <ItemCard key={item.id} item={item} />)}
+          </div>
+        )}
+        <Link to="/browse" className="btn-outline mt-8 w-full sm:hidden">See all items</Link>
+      </section>
+    </>
   );
 }

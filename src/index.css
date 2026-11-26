@@ -1,128 +1,108 @@
 @import "tailwindcss";
 
+/*
+ * SnapTrace design tokens — "campus noticeboard".
+ * Warm paper, ink-black type, one vermilion accent (the colour of a lost-property tag).
+ * Every colour in the app comes from here; components never use raw hex.
+ */
 @theme {
-  --color-background: #0D0D0D;
-  --color-surface: #161616;
-  --color-border: #2A2A2A;
-  --color-accent: #FF2D55;
-  --color-accent-hover: #E0263A;
-  --color-secondary: #FF6B35;
-  --color-success: #00D26A;
-  --color-warning: #FFB800;
-  --color-text-primary: #F5F5F5;
-  --color-text-muted: #888888;
+  --color-canvas: #f5f2ec;
+  --color-surface: #ffffff;
+  --color-sunken: #ece8df;
+  --color-line: #e2ddd3;
+  --color-line-strong: #cbc4b6;
 
-  --font-syne: 'Syne', sans-serif;
-  --font-inter: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --color-ink: #1a1a1d;
+  --color-ink-soft: #3d3d43;
+  --color-muted: #6b675f;
+  --color-faint: #98938a;
 
-  --animate-float: float 3s ease-in-out infinite;
-  --animate-pulse-red: pulse-red 2s ease-in-out infinite;
-  --animate-fade-up: fadeUp 0.4s ease forwards;
+  --color-accent: #d6432a;
+  --color-accent-ink: #b0341e;
+  --color-accent-soft: #fae5df;
 
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-12px); }
+  --color-found: #2454c0;
+  --color-found-soft: #e2e9f8;
+  --color-success: #1d7a46;
+  --color-success-soft: #dff0e5;
+  --color-warning: #9a5f0c;
+  --color-warning-soft: #f6ead2;
+
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Instrument Serif", Georgia, serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+
+  --shadow-card: 0 1px 0 rgb(26 26 29 / 0.04), 0 1px 3px rgb(26 26 29 / 0.06);
+  --shadow-lift: 0 2px 4px rgb(26 26 29 / 0.04), 0 12px 32px -8px rgb(26 26 29 / 0.14);
+
+  --animate-rise: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-scan: scan 1.6s ease-in-out infinite;
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
   }
-  @keyframes pulse-red {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255,45,85,0.4); }
-    50% { box-shadow: 0 0 0 8px rgba(255,45,85,0); }
-  }
-  @keyframes fadeUp {
-    0% { opacity: 0; transform: translateY(20px); }
-    100% { opacity: 1; transform: translateY(0); }
+  @keyframes scan {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(400%); }
   }
 }
 
-body {
-  background-color: #0D0D0D;
-  color: #F5F5F5;
-  font-family: 'Inter', sans-serif;
-  overflow-x: hidden;
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-canvas text-ink font-sans;
+  }
+  ::selection {
+    @apply bg-accent text-white;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Syne', sans-serif;
+@utility container-page {
+  @apply mx-auto w-full max-w-6xl px-4 sm:px-6;
 }
-
-* {
-  box-sizing: border-box;
+@utility card {
+  @apply rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)];
 }
-
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 4px;
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium
+    transition-[background-color,border-color,color,transform] duration-150 active:translate-y-px
+    disabled:pointer-events-none disabled:opacity-50;
 }
-
-::-webkit-scrollbar-track {
-  background: #161616;
+@utility btn-primary {
+  @apply btn bg-ink text-canvas hover:bg-ink-soft;
 }
-
-::-webkit-scrollbar-thumb {
-  background: #2A2A2A;
-  border-radius: 2px;
+@utility btn-accent {
+  @apply btn bg-accent text-white hover:bg-accent-ink;
 }
-
-::-webkit-scrollbar-thumb:hover {
-  background: #FF2D55;
+@utility btn-outline {
+  @apply btn border border-line-strong bg-surface text-ink hover:border-ink;
 }
-
-/* Base custom classes */
-.card-style {
-  background-color: #161616;
-  border: 1px solid #2A2A2A;
-  border-radius: 1rem;
+@utility btn-ghost {
+  @apply btn text-muted hover:bg-sunken hover:text-ink;
 }
-
-.button-primary {
-  background-color: #FF2D55;
-  color: #FFFFFF;
-  border-radius: 0.75rem;
-  padding: 0.625rem 1.5rem;
-  font-weight: 600;
-  transition: all 0.2s ease-in-out;
-  box-shadow: 0 0 10px rgba(255, 45, 85, 0.1);
+@utility field {
+  @apply w-full rounded-xl border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-ink
+    placeholder:text-faint transition-colors focus:border-ink focus:outline-none;
 }
-
-.button-primary:hover {
-  background-color: #E0263A;
-  transform: scale(1.05);
-  box-shadow: 0 0 20px rgba(255, 45, 85, 0.3);
+@utility label {
+  @apply mb-1.5 block text-sm font-medium text-ink-soft;
 }
-
-.button-primary:active {
-  transform: scale(0.95);
+@utility eyebrow {
+  @apply font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted;
 }
-
-.button-ghost {
-  border: 1px solid #2A2A2A;
-  color: #FFFFFF;
-  border-radius: 0.75rem;
-  padding: 0.625rem 1.5rem;
-  font-weight: 600;
-  transition: all 0.2s ease-in-out;
-}
-
-.button-ghost:hover {
-  border-color: #FF2D55;
-  transform: scale(1.05);
-}
-
-.button-ghost:active {
-  transform: scale(0.95);
-}
-
-.input-style {
-  background-color: #1A1A1A;
-  border: 1px solid #2A2A2A;
-  border-radius: 0.75rem;
-  color: #FFFFFF;
-  outline: none;
-  padding: 0.625rem 1rem;
-  width: 100%;
-  transition: border-color 0.2s ease;
-}
-
-.input-style:focus {
-  border-color: #FF2D55;
+@utility chip {
+  @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-sunken/60 px-2.5 py-1 text-xs text-ink-soft;
 }

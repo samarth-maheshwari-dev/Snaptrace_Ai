@@ -1,8 +1,17 @@
 node_modules/
-build/
 dist/
+dist-server/
 coverage/
 .DS_Store
 *.log
-.env*
-.env.example
+
+# secrets: never commit real env files
+.env
+.env.*
+!.env.example
+
+# local runtime data (db + uploaded photos)
+data/
+
+# personal notes, not for the repo
+decision.md

@@ -1,32 +1,27 @@
-export interface Item {
-  id: string;
-  type: 'lost' | 'found';
-  title: string;
-  category: string;
-  location: string;
-  date_occurred: string;
-  description?: string;
-  contact_email: string;
-  contact_name: string;
-  image_url?: string;
-  descriptor_json?: any;
-  status: 'open' | 'claimed' | 'resolved';
-  created_at: string;
+// Shared with the server so the API contract has one source of truth.
+export type {
+  Category, Claim, ClaimStatus, Descriptor, Item, ItemStatus, ItemType, Match, PublicItem, SessionUser,
+} from '../../server/types';
+import type { Claim, Item, ClaimStatus, PublicItem } from '../../server/types';
+
+export interface ClaimWithItem extends Claim {
+  item?: Item;
 }
 
-export interface Claim {
+export interface MyClaim {
   id: string;
-  item_id: string;
-  claimer_name: string;
-  claimer_email: string;
-  student_id: string;
-  phone?: string;
-  proof_text: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: ClaimStatus;
   created_at: string;
+  item: PublicItem | null;
 }
 
-export interface MatchResult {
-  item: Item;
-  score: number;
+export interface AdminStats {
+  total: number;
+  openLost: number;
+  openFound: number;
+  pendingClaims: number;
+  resolved: number;
+  recoveryRate: number;
+  postsLast7Days: { date: string; posted: number }[];
+  byCategory: { name: string; value: number }[];
 }
