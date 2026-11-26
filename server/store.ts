@@ -58,9 +58,17 @@ export class SupabaseStore implements Store {
   }
 
   async init() {
-    const { count, error } = await this.sb.from("items").select("id", { count: "exact", head: true });
-    if (error) throw new Error(`[supabase] cannot reach tables — did you run supabase/schema.sql? (${error.message})`);
-    if (!count) {
+    // A real (non-HEAD) query so connection/key/table problems surface with a readable message.
+    const { data, error } = await this.sb.from("items").select("id").limit(1);
+    if (error) {
+      const hint = /relation|does not exist|schema cache/i.test(error.message)
+        ? "Tables missing: run supabase/schema.sql in the Supabase SQL Editor."
+        : /invalid api key|jwt|unauthor/i.test(error.message)
+          ? "Key rejected: SUPABASE_SERVICE_ROLE_KEY must be the project's SECRET key."
+          : "Check SUPABASE_URL is the Project URL (https://<ref>.supabase.co).";
+      throw new Error(`[supabase] ${error.message}\n  → ${hint}`);
+    }
+    if (!data?.length) {
       this.check(await this.sb.from("items").insert(buildSeedItems()), "seed");
       console.log("  Seeded demo items into Supabase.");
     }
@@ -189,10 +197,33 @@ export class JsonStore implements Store {
   }
 }
 
+/**
+ * Accepts what people actually paste: "https://x.supabase.co", ".../rest/v1/", quotes, trailing
+ * slashes, or the dashboard URL. supabase-js needs the bare project origin.
+ */
+export function normaliseSupabaseUrl(raw: string): string {
+  const v = raw.trim().replace(/^['"]|['"]$/g, "");
+  let u: URL;
+  try {
+    u = new URL(v.startsWith("http") ? v : `https://${v}`);
+  } catch {
+    throw new Error("SUPABASE_URL is not a valid URL. Use the Project URL, e.g. https://abcd1234.supabase.co");
+  }
+  // Dashboard link: https://supabase.com/dashboard/project/<ref>/...
+  const dash = u.pathname.match(/\/project\/([a-z0-9]{15,})/);
+  if (u.hostname.endsWith("supabase.com") && dash) return `https://${dash[1]}.supabase.co`;
+  return u.origin;
+}
+
 export function createStore(): Store {
   const url = process.env.SUPABASE_URL?.trim();
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (url && key) return new SupabaseStore(url, key);
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim().replace(/^['"]|['"]$/g, "");
+  if (url && key) {
+    if (key.startsWith("sb_publishable_")) {
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY has the publishable key. Use the SECRET key (sb_secret_...).");
+    }
+    return new SupabaseStore(normaliseSupabaseUrl(url), key);
+  }
   if (process.env.NODE_ENV === "production") {
     console.warn("  ⚠ No SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY: using local JSON — data is lost on redeploy.");
   }
